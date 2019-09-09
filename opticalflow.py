@@ -83,26 +83,33 @@ def harneback(cap):
 
 def temporalfilter(cap):
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-    first_frames = [cap.read()[1] for i in range(5)]
-    first_frames = [cv2.cvtColor(i, cv2.COLOR_BGR2GRAY) for i in first_frames]
-    first_frames = np.array(first_frames, dtype='uint8')
-    first_frame = np.median(first_frames, axis=0)
-    first_frame = np.array(first_frame, dtype='uint8')
+    # first_frames = [cap.read()[1] for i in range(5)]
+    # first_frames = [cv2.cvtColor(i, cv2.COLOR_BGR2GRAY) for i in first_frames]
+    # first_frames = np.array(first_frames, dtype='uint8')
+    # first_frame = np.median(first_frames, axis=0).astype(np.uint8)
+    first_frame = cap.read()[1]
+    first_frame = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
 
     framecount = 0
+    # cap.set(cv2.CAP_PROP_POS_FRAMES, 500)
+
     while True:
         # imgs = [cv2.resize(cap.read()[1], (256, 256)) for i in range(5)]
-        imgs = [cap.read()[1] for i in range(3)]
-        # print(len(imgs))
-        imgs = [cv2.cvtColor(i, cv2.COLOR_BGR2GRAY) for i in imgs]
-        imgs = np.array(imgs, dtype='uint8')
-        frame = np.median(imgs, axis=0)
-        # frame = np.average(imgs, axis=0)
-        frame = np.array(frame, dtype='uint8') - first_frame
-        # frame = first_frame
-        frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
 
-        # print(frame)
+        # imgs = [cap.read()[1] for i in range(3)]
+        # imgs = [cv2.cvtColor(i, cv2.COLOR_BGR2GRAY).astype(np.uint8) for i in imgs]
+        # frame = np.median(imgs, axis=0).astype(np.uint8)
+
+        # first_frame = np.ones((1024, 1024, 1), np.uint8)*100
+        # frame = np.average(imgs, axis=0)
+
+        frame = cap.read()[1]
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        # frame = np.subtract(frame, first_frame)
+        frame = cv2.absdiff(frame, first_frame)
+
+        frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
         # gray = [np.float64(i) for i in gray]
         # dst = cv2.fastNlMeansDenoisingMulti(gray, 1, 5, None, 4, 7, 35)
 
@@ -118,6 +125,7 @@ def temporalfilter(cap):
 
         elif k == ord("s"):
             cv2.imwrite("test.png", frame)
+            print("image saved")
 
 
         framecount += 1
