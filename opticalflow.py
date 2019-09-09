@@ -1,3 +1,4 @@
+import argparse
 import cv2
 import numpy as np
 import sys
@@ -81,21 +82,28 @@ def harneback(cap):
             cv2.imwrite('opticalhsv.png',rgb)
         prvs = next
 
-def otherfilter(cap, filename):
+def nofilter(cap, filename, framecount=500, spatial_filter=False, init_diff=True, diff_num=5):
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
     first_frame = cap.read()[1]
-    # first_frame = cv2.medianBlur(first_frame, 7)
-    # first_frame = cv2.fastNlMeansDenoisingColored(first_frame,None,10,10,7,21)
+    if(spatial_filter):
+         first_frame = cv2.medianBlur(first_frame, 5)
+         # first_frame = cv2.fastNlMeansDenoisingColored(first_frame,None,10,10,7,21)
     # first_frame = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
 
-    framecount = 500
     cap.set(cv2.CAP_PROP_POS_FRAMES, framecount)
 
     while True:
+        if(init_diff==0):
+            cap.set(cv2.CAP_PROP_POS_FRAMES, framecount)
+            first_frame = cap.read()[1]
+            cap.set(cv2.CAP_PROP_POS_FRAMES, framecount+diff_num)
+
         frame = cap.read()[1]
-        # frame = cv2.medianBlur(frame, 7)
-        # frame = cv2.fastNlMeansDenoisingColored(frame,None,10,10,7,21) #realy slow!
-        frame = cv2.absdiff(frame, first_frame)*2
+        if(spatial_filter):
+             frame = cv2.medianBlur(frame, 5)
+             #frame = cv2.fastNlMeansDenoisingColored(frame,None,10,10,7,21) #realy slow!
+
+        frame = cv2.absdiff(frame, first_frame)*5
         # frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
         cv2.putText(frame, "FrameCount : " + str(framecount), (10,60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
         cv2.imshow("Tracking", frame)
@@ -135,17 +143,23 @@ def temporalfilter(cap, filename):
             print("image saved")
         framecount += 1
 
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--file')
+    parser.add_argument('--spatial_filter', type=int, default=0)
+    parser.add_argument('--init_diff', type=int, default=1)
+    args = parser.parse_args()
 
-print('sys.argv         : ', sys.argv)
-filename = sys.argv[1]
-print("filename", filename[8:-4])
-cap = cv2.VideoCapture(filename)
-filename =filename[8:-4]
+    print('sys.argv         : ', args.file)
+    filename = args.file
+    print("filename", filename[8:-4])
+    cap = cv2.VideoCapture(filename)
+    filename =filename[8:-4]
 
-otherfilter(cap, filename)
-# temporalfilter(cap, filename)
-# lukaskanade(cap)
-# harneback(cap)
+    nofilter(cap, filename, 500, args.spatial_filter, args.init_diff, 5)
+    # temporalfilter(cap, filename)
+    # lukaskanade(cap)
+    # harneback(cap)
 
-cv2.destroyAllWindows()
-cap.release()
+    cv2.destroyAllWindows()
+    cap.release()
