@@ -81,41 +81,22 @@ def harneback(cap):
             cv2.imwrite('opticalhsv.png',rgb)
         prvs = next
 
-def temporalfilter(cap):
+def otherfilter(cap, filename):
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-    # first_frames = [cap.read()[1] for i in range(5)]
-    # first_frames = [cv2.cvtColor(i, cv2.COLOR_BGR2GRAY) for i in first_frames]
-    # first_frames = np.array(first_frames, dtype='uint8')
-    # first_frame = np.median(first_frames, axis=0).astype(np.uint8)
     first_frame = cap.read()[1]
-    first_frame = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
+    # first_frame = cv2.medianBlur(first_frame, 7)
+    # first_frame = cv2.fastNlMeansDenoisingColored(first_frame,None,10,10,7,21)
+    # first_frame = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
 
-    framecount = 0
-    # cap.set(cv2.CAP_PROP_POS_FRAMES, 500)
+    framecount = 500
+    cap.set(cv2.CAP_PROP_POS_FRAMES, framecount)
 
     while True:
-        # imgs = [cv2.resize(cap.read()[1], (256, 256)) for i in range(5)]
-
-        # imgs = [cap.read()[1] for i in range(3)]
-        # imgs = [cv2.cvtColor(i, cv2.COLOR_BGR2GRAY).astype(np.uint8) for i in imgs]
-        # frame = np.median(imgs, axis=0).astype(np.uint8)
-
-        # first_frame = np.ones((1024, 1024, 1), np.uint8)*100
-        # frame = np.average(imgs, axis=0)
-
         frame = cap.read()[1]
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-        # frame = np.subtract(frame, first_frame)
-        frame = cv2.absdiff(frame, first_frame)
-
-        frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
-        # gray = [np.float64(i) for i in gray]
-        # dst = cv2.fastNlMeansDenoisingMulti(gray, 1, 5, None, 4, 7, 35)
-
-        # ret, frame = cap.read()
-        # if not ret:
-        #     continue
+        # frame = cv2.medianBlur(frame, 7)
+        # frame = cv2.fastNlMeansDenoisingColored(frame,None,10,10,7,21) #realy slow!
+        frame = cv2.absdiff(frame, first_frame)*2
+        # frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
         cv2.putText(frame, "FrameCount : " + str(framecount), (10,60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
         cv2.imshow("Tracking", frame)
 
@@ -123,19 +104,46 @@ def temporalfilter(cap):
         if k == 27:
             break
 
-        elif k == ord("s"):
-            cv2.imwrite("test.png", frame)
-            print("image saved")
-
-
+        elif(k == ord("s") or framecount == 900):
+            cv2.imwrite("diff_images/subtract_%s_%i.png" %(filename, framecount), frame)
+            print("image saved", "subtract_%s_%i.png" %(filename, framecount))
         framecount += 1
+
+def temporalfilter(cap, filename):
+    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+    first_frames = [cap.read()[1] for i in range(5)]
+    # first_frames = [cv2.cvtColor(i, cv2.COLOR_BGR2GRAY).astype(np.uint8) for i in first_frames]
+    first_frame = np.median(first_frames, axis=0).astype(np.uint8)
+    framecount = 500
+    cap.set(cv2.CAP_PROP_POS_FRAMES, framecount)
+
+    while True:
+        imgs = [cap.read()[1] for i in range(3)]
+        # imgs = [cv2.cvtColor(i, cv2.COLOR_BGR2GRAY).astype(np.uint8) for i in imgs]
+        frame = np.median(imgs, axis=0).astype(np.uint8) #or frame = np.average(imgs, axis=0)
+        frame = cv2.subtract(frame, first_frame)
+        # frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+        cv2.putText(frame, "FrameCount : " + str(framecount), (10,60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
+        cv2.imshow("Tracking", frame)
+
+        k = cv2.waitKey(30) & 0xff
+        if k == 27:
+            break
+
+        elif (k == ord("s") or framecount == 900):
+            cv2.imwrite("diff_images/temporal_filter_%s_%i.png" %(filename, framecount), frame)
+            print("image saved")
+        framecount += 1
+
 
 print('sys.argv         : ', sys.argv)
 filename = sys.argv[1]
 print("filename", filename[8:-4])
 cap = cv2.VideoCapture(filename)
+filename =filename[8:-4]
 
-temporalfilter(cap)
+otherfilter(cap, filename)
+# temporalfilter(cap, filename)
 # lukaskanade(cap)
 # harneback(cap)
 
