@@ -2,10 +2,11 @@
 import cv2
 import numpy as np
 import sys
+import matplotlib.pyplot as plt
 
 # 追跡対象の色範囲（Hueの値域）
 def is_target(roi):
-    return (roi <= 30) | (roi >= 150)
+    return (roi <= 30) | (roi >= 255)
 
 # マスクから面積最大ブロブの中心座標を算出
 def max_moment_point(mask):
@@ -22,6 +23,7 @@ def initialize(img, N):
     mask = img.copy()                  # 画像のコピー
     mask[is_target(mask) == False] = 0 # マスク画像の作成（追跡対象外の色なら画素値0）
     x, y = max_moment_point(mask)      # マスクから面積最大ブロブの中心座標を算出
+    print("init x and y", x, y)
     w = calc_likelihood(x, y, img)     # 尤度の算出
     ps = np.ndarray((N, 3), dtype=np.float32) # パーティクル格納用の配列を生成
     ps[:] = [x, y, w]                  # パーティクル用配列に中心座標と尤度をセット
@@ -96,21 +98,57 @@ def main():
     cap = cv2.VideoCapture(filename)
     all_frame_nums  =  int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     print("num of frames", all_frame_nums)
-    frame_nums = np.arange(all_frame_nums)
-    pixel_time = []
+    # frame_nums = np.arange(all_frame_nums)
+    # pixel_time = []
 
     # パーティクル格納用の変数
     ps = None
 
+
+    #### clicked pos
+    clicked_positions = []
+    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+    ret, frame = cap.read()
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV_FULL)
+    # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+    fig = plt.figure()
+    mask = hsv.copy()
+    mask[is_target(mask) == False] = 0
+    plt.imshow(mask)
+    # print(frame[:10], frame.shape)
+
+    def onclick(event):
+        print('you pressed', event.xdata, event.ydata)
+        X_coordinate = event.xdata
+        Y_coordinate = event.ydata
+        clicked_positions.append([int(X_coordinate), int(Y_coordinate)])
+        # if(len(clicked_positions)>2):
+        #     break
+        print('rgb', frame[int(Y_coordinate)][int(X_coordinate)], 'is_target', is_target(frame[int(Y_coordinate)][int(X_coordinate)])) # x and y are inverted in np array
+        print("istarget", (frame[int(Y_coordinate)][int(X_coordinate)] <= 30), (frame[int(Y_coordinate)][int(X_coordinate)] >= 150) )
+
+        plt.scatter(int(X_coordinate), int(Y_coordinate), color='red',  s=10)
+        plt.show()
+
+
+    cid = fig.canvas.mpl_connect('button_press_event', onclick)
+    plt.show() ## somehow it needs here
+
+    print("clicked positions", clicked_positions)
+
+
+    # print(clicked_positions[0][0], clicked_positions[1][0], clicked_positions[0][1], clicked_positions[1][1])
+
     # カメラのキャプチャ
     # cap = cv2.VideoCapture(0)
-
+    framecount = 0
     while cv2.waitKey(30) < 0:
         ret, frame = cap.read()
         # (x, y, w, h) = cv2.boundingRect(c)
         # cv2.rectangle(frame, (x,y), (x+w, y+h), (0, 255, 0), 2)
         # roi = frame[y:y+h, x:x+w]
-        frame = frame[400:600, 200:400]
+        frame = frame[clicked_positions[0][1]:clicked_positions[1][1], clicked_positions[0][0]:clicked_positions[1][0]]
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV_FULL)
         h = hsv[:, :, 0]
 
@@ -132,8 +170,10 @@ def main():
             frame[int(ps1[i, 1]), int(ps1[i, 0])] = [0, 0, 200]
             # パーティクルの集中部分を赤い矩形で囲む
         cv2.rectangle(frame, (x-20, y-20), (x+20, y+20), (0, 0, 200), 5)
-
+        print(framecount)
+        # cv2.putText(frame, framecount, (0, 100), cv2.FONT_HERSHEY_PLAIN, 1.5, )
         cv2.imshow('Result', frame)
+        framecount += 1
 
     cap.release()
     cv2.destroyAllWindows()
