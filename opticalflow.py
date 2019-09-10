@@ -2,6 +2,7 @@ import argparse
 import cv2
 import numpy as np
 import sys
+import matplotlib.pyplot as plt
 
 
 def lukaskanade(cap):
@@ -57,32 +58,65 @@ def lukaskanade(cap):
         old_gray = frame_gray.copy()
         p0 = good_new.reshape(-1,1,2)
 
-def harneback(cap):
+def harneback(cap, filename):
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            continue
+        # frame = frame_resize(frame)
+        bbox = (0,0,10,10)
+        bbox = cv2.selectROI(frame, False)
+        cv2.destroyAllWindows()
+        break
+
+    # cap = cv2.VideoCapture(0)
     ret, frame1 = cap.read()
     prvs = cv2.cvtColor(frame1,cv2.COLOR_BGR2GRAY)
     hsv = np.zeros_like(frame1)
     hsv[...,1] = 255
+
+    framecount = 0
+
+    mag_all = []
+    ang_all = []
     while(1):
         ret, frame2 = cap.read()
         next = cv2.cvtColor(frame2,cv2.COLOR_BGR2GRAY)
-
-        flow = cv2.calcOpticalFlowFarneback(prvs,next, None, 0.5, 3, 15, 3, 5, 1.2, 0)
-
+        flow = cv2.calcOpticalFlowFarneback(prvs,next, None, pyr_scale=0.5, levels=3, winsize=15, iterations=3, poly_n=5, poly_sigma=1.1, flags=0)
+        #flow.shape = 1024,1024, 2
         mag, ang = cv2.cartToPolar(flow[...,0], flow[...,1])
+        mag_all.append(mag[bbox[1]:bbox[1]+bbox[3], bbox[0]:bbox[0]+bbox[2]])
+        ang_all.append(ang[bbox[1]:bbox[1]+bbox[3], bbox[0]:bbox[0]+bbox[2]])
+
+        # print(mag.shape, ang.shape)
         hsv[...,0] = ang*180/np.pi/2
+        # hsv[:,:,0] = ang/2
         hsv[...,2] = cv2.normalize(mag,None,0,255,cv2.NORM_MINMAX)
         rgb = cv2.cvtColor(hsv,cv2.COLOR_HSV2BGR)
+
+        cv2.putText(rgb, "FrameCount : " + str(framecount), (10,60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
+        # cv2.imshow("harneback", frame)
 
         cv2.imshow('frame2',rgb)
         k = cv2.waitKey(30) & 0xff
         if k == 27:
             break
         elif k == ord('s'):
-            cv2.imwrite('opticalfb.png',frame2)
-            cv2.imwrite('opticalhsv.png',rgb)
-        prvs = next
+            npy_filename = "harneback_%s_%i" %(filename, framecount)
+            cv2.imwrite("npy/" + npy_filename + "_org.png", frame2)
+            cv2.imwrite("npy/" + npy_filename + "_hsv.png", rgb)
+            np.save("./npy/" + npy_filename + "_mag", mag_all)
+            np.save("./npy/" + npy_filename + "_ang", ang_all)
+            f = open("./npy/" + npy_filename + ".txt", 'w')
+            text = "bounding box was \n" +  str(bbox)
+            f.write(text)
+            f.close()
 
-def nofilter(cap, filename, framecount=500, spatial_filter=False, init_diff=True, diff_num=5):
+        prvs = next
+        framecount +=1
+
+def diff_frames(cap, filename, framecount=500, spatial_filter=False, init_diff=True, diff_num=5):
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
     first_frame = cap.read()[1]
     if(spatial_filter):
@@ -117,12 +151,11 @@ def nofilter(cap, filename, framecount=500, spatial_filter=False, init_diff=True
             print("image saved", "subtract_%s_%i.png" %(filename, framecount))
         framecount += 1
 
-def temporalfilter(cap, filename):
+def temporalfilter(cap, filename, framecount):
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
     first_frames = [cap.read()[1] for i in range(5)]
     # first_frames = [cv2.cvtColor(i, cv2.COLOR_BGR2GRAY).astype(np.uint8) for i in first_frames]
     first_frame = np.median(first_frames, axis=0).astype(np.uint8)
-    framecount = 500
     cap.set(cv2.CAP_PROP_POS_FRAMES, framecount)
 
     while True:
@@ -148,6 +181,8 @@ if __name__ == '__main__':
     parser.add_argument('--file')
     parser.add_argument('--spatial_filter', type=int, default=0)
     parser.add_argument('--init_diff', type=int, default=1)
+    parser.add_argument('--start_framecount', type=int, default=500)
+    parser.add_argument('--method', type=int, default=0)
     args = parser.parse_args()
 
     print('sys.argv         : ', args.file)
@@ -156,10 +191,14 @@ if __name__ == '__main__':
     cap = cv2.VideoCapture(filename)
     filename =filename[8:-4]
 
-    nofilter(cap, filename, 500, args.spatial_filter, args.init_diff, 5)
-    # temporalfilter(cap, filename)
-    # lukaskanade(cap)
-    # harneback(cap)
+    if args.method == 0:
+        diff_frames(cap, filename, args.start_framecount, args.spatial_filter, args.init_diff, 5)
+    elif args.method == 1:
+        temporalfilter(cap, filename, args.start_framecount)
+    elif args.method == 2:
+        lukaskanade(cap)
+    elif args.method == 3:
+        harneback(cap, filename)
 
     cv2.destroyAllWindows()
     cap.release()
