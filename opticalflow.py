@@ -58,7 +58,7 @@ def lukaskanade(cap):
         old_gray = frame_gray.copy()
         p0 = good_new.reshape(-1,1,2)
 
-def harneback(cap, filename):
+def harneback(cap, filename, framecount):
 
     while True:
         ret, frame = cap.read()
@@ -76,8 +76,6 @@ def harneback(cap, filename):
     hsv = np.zeros_like(frame1)
     hsv[...,1] = 255
 
-    framecount = 0
-
     mag_all = []
     ang_all = []
     while(1):
@@ -89,16 +87,11 @@ def harneback(cap, filename):
         mag_all.append(mag[bbox[1]:bbox[1]+bbox[3], bbox[0]:bbox[0]+bbox[2]])
         ang_all.append(ang[bbox[1]:bbox[1]+bbox[3], bbox[0]:bbox[0]+bbox[2]])
 
-        # print(mag.shape, ang.shape)
-        hsv[...,0] = ang*180/np.pi/2
-        # hsv[:,:,0] = ang/2
-        hsv[...,2] = cv2.normalize(mag,None,0,255,cv2.NORM_MINMAX)
-        rgb = cv2.cvtColor(hsv,cv2.COLOR_HSV2BGR)
-
+        rgb = next
         cv2.putText(rgb, "FrameCount : " + str(framecount), (10,60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
         # cv2.imshow("harneback", frame)
+        cv2.imshow('frame2', draw_flow(rgb, flow))
 
-        cv2.imshow('frame2',rgb)
         k = cv2.waitKey(30) & 0xff
         if k == 27:
             break
@@ -112,9 +105,29 @@ def harneback(cap, filename):
             text = "bounding box was \n" +  str(bbox)
             f.write(text)
             f.close()
+            print("saved!")
 
         prvs = next
         framecount +=1
+
+def draw_flow(im, flow, step=16):
+    """ Plot optical flow at sample points
+    spaced step pixels apart. """
+
+    h, w = im.shape[:2]
+    y, x = np.mgrid[step/2:h:step, step/2:w:step].reshape(2, -1).astype(np.int32)
+    fx, fy = flow[y, x].T
+
+    # create line endpoints
+    lines = np.vstack([x, y, x+fx, y+fy]).T.reshape(-1, 2, 2)
+    lines = np.int32(lines)
+
+    # create image and draw_flow
+    vis = cv2.cvtColor(im, cv2.COLOR_GRAY2BGR)
+    for (x1, y1), (x2, y2) in lines:
+        cv2.line(vis, (x1, y1), (x2 + (x2-x1), y2 + (y2-y1)), (0, 255, 0), 1)
+        cv2.circle(vis, (x1, y1), 1, (0, 255, 0), -1)
+    return vis
 
 def diff_frames(cap, filename, framecount=500, spatial_filter=False, init_diff=True, diff_num=5):
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
@@ -198,7 +211,7 @@ if __name__ == '__main__':
     elif args.method == 2:
         lukaskanade(cap)
     elif args.method == 3:
-        harneback(cap, filename)
+        harneback(cap, filename, args.start_framecount)
 
     cv2.destroyAllWindows()
     cap.release()
