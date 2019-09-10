@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import sys
 import matplotlib.pyplot as plt
-
+# import copy
 
 def lukaskanade(cap):
 
@@ -60,16 +60,16 @@ def lukaskanade(cap):
 
 def harneback(cap, filename, framecount):
 
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            continue
-        # frame = frame_resize(frame)
-        bbox = (0,0,10,10)
-        bbox = cv2.selectROI(frame, False)
-        cv2.destroyAllWindows()
-        break
-
+    # while True:
+    #     ret, frame = cap.read()
+    #     if not ret:
+    #         continue
+    #     # frame = frame_resize(frame)
+    #     bbox = (0,0,10,10)
+    #     bbox = cv2.selectROI(frame, False)
+    #     cv2.destroyAllWindows()
+    #     break
+    bbox = (447, 610, 77, 31)
     # cap = cv2.VideoCapture(0)
     ret, frame1 = cap.read()
     prvs = cv2.cvtColor(frame1,cv2.COLOR_BGR2GRAY)
@@ -78,24 +78,32 @@ def harneback(cap, filename, framecount):
 
     mag_all = []
     ang_all = []
+
+    init_framecount = framecount
+
     while(1):
         ret, frame2 = cap.read()
         next = cv2.cvtColor(frame2,cv2.COLOR_BGR2GRAY)
         flow = cv2.calcOpticalFlowFarneback(prvs,next, None, pyr_scale=0.5, levels=3, winsize=15, iterations=3, poly_n=5, poly_sigma=1.1, flags=0)
         #flow.shape = 1024,1024, 2
-        mag, ang = cv2.cartToPolar(flow[...,0], flow[...,1])
-        mag_all.append(mag[bbox[1]:bbox[1]+bbox[3], bbox[0]:bbox[0]+bbox[2]])
-        ang_all.append(ang[bbox[1]:bbox[1]+bbox[3], bbox[0]:bbox[0]+bbox[2]])
+        # mag, ang = cv2.cartToPolar(flow[...,0], flow[...,1])
+        # mag_all.append(mag[bbox[1]:bbox[1]+bbox[3], bbox[0]:bbox[0]+bbox[2]])
+        # ang_all.append(ang[bbox[1]:bbox[1]+bbox[3], bbox[0]:bbox[0]+bbox[2]])
+        #
+        # hsv[...,0] = ang*180/np.pi/2
+        # # hsv[:,:,0] = ang/2
+        # hsv[...,2] = cv2.normalize(mag,None,0,255,cv2.NORM_MINMAX)
+        # rgb = cv2.cvtColor(hsv,cv2.COLOR_HSV2BGR)
+        rgb = draw_flow(next, flow)
 
-        rgb = next
         cv2.putText(rgb, "FrameCount : " + str(framecount), (10,60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
         # cv2.imshow("harneback", frame)
-        cv2.imshow('frame2', draw_flow(rgb, flow))
+        cv2.imshow('frame2',rgb)
 
         k = cv2.waitKey(30) & 0xff
         if k == 27:
             break
-        elif k == ord('s'):
+        elif k == ord('s') or framecount - init_framecount == 100:
             npy_filename = "harneback_%s_%i" %(filename, framecount)
             cv2.imwrite("npy/" + npy_filename + "_org.png", frame2)
             cv2.imwrite("npy/" + npy_filename + "_hsv.png", rgb)
@@ -106,6 +114,12 @@ def harneback(cap, filename, framecount):
             f.write(text)
             f.close()
             print("saved!")
+            mag_np = np.array(mag_all)
+            plt.plot(mag_np[:100, 0, :3])
+            plt.ylim(0, 0.5)
+            plt.title(npy_filename + "_mag")
+            plt.show()
+            plt.savefig("./npy/" + npy_filename+"_mag_plot.png")
 
         prvs = next
         framecount +=1

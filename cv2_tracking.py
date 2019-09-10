@@ -45,21 +45,13 @@ if __name__ == '__main__':
 
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
     ret, first_frame = cap.read()
-    first_frame = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
+    # first_frame = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
     # cap = cv2.VideoCapture(0)
-
-    ## writer
-    frame_width = int(cap.get(3))
-    frame_height = int(cap.get(4))
-    fourcc = cv2.VideoWriter_fourcc(*'DIVX')
-    # writer = cv2.VideoWriter('outpy.avi', -1, 20.0, (frame_width,frame_height))
-
 
     while True:
         ret, frame = cap.read()
         if not ret:
             continue
-        # frame = frame_resize(frame)
         bbox = (0,0,10,10)
         bbox = cv2.selectROI(frame, False)
         ok = tracker.init(frame, bbox)
@@ -68,11 +60,16 @@ if __name__ == '__main__':
 
     framecount = 0
     positions = []
+    frames = []
+    prev_frame = first_frame
+
     while True:
         # VideoCaptureから1フレーム読み込む
         ret, frame = cap.read()
+        frames.append(frame)
+        if len(frames) > 10:
+            frames.pop(0)
 
-        # frame = frame_resize(frame)
         if not ret:
             k = cv2.waitKey(1)
             if k == 27 :
@@ -84,14 +81,17 @@ if __name__ == '__main__':
 
         # トラッカーをアップデートする
         track, bbox = tracker.update(frame)
-        positions.append(bbox)
+        position = [bbox[0]+bbox[2]/2, bbox[1]+bbox[3]/2]
+        positions.append(position)
 
         # FPSを計算する
         fps = cv2.getTickFrequency() / (cv2.getTickCount() - timer)
 
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        frame = frame - first_frame
-        frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+        # frame = np.median(frames, axis=0).astype(np.uint8)
+        diff = cv2.subtract(frame, frames[0])*10
+        # diff = cv2.absdiff(frame, prev_frame)*5
+
+        # diff = cv2.subtract(frame, first_frame)*10
 
         # 検出した場所に四角を書く
         if track:
@@ -99,29 +99,31 @@ if __name__ == '__main__':
             # print(bbox)
             p1 = (int(bbox[0]), int(bbox[1]))
             p2 = (int(bbox[0] + bbox[2]), int(bbox[1] + bbox[3]))
-            cv2.rectangle(frame, p1, p2, (0,255,0), 1, 1)
+            cv2.rectangle(diff, p1, p2, (0,255,0), 1, 1)
         else :
             # トラッキングが外れたら警告を表示する
-            cv2.putText(frame, "Failure", (10,50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
+            cv2.putText(diff, "Failure", (10,50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
 
         # FPSを表示する
-        cv2.putText(frame, "FPS : " + str(int(fps)), (10,20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
-        cv2.putText(frame, "BBOX : " + str(int(bbox[0])), (10,40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
-        cv2.putText(frame, "FrameCount : " + str(framecount) + " , " + str(all_frame_nums), (10,60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
+        cv2.putText(diff, "FPS : " + str(int(fps)), (10,20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
+        cv2.putText(diff, "BBOX : " + str(int(bbox[0])), (10,40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
+        cv2.putText(diff, "FrameCount : " + str(framecount) + " , " + str(all_frame_nums), (10,60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
         for pos in positions:
-            center = [pos[0]+pos[2]/2, pos[1]+pos[3]/2]
-            cv2.circle(frame, (int(center[0]), int(center[1])), 2, (0,255,255), -1)
+            cv2.circle(diff, (int(pos[0]), int(pos[1])), 2, (0,255,255), -1)
         # 加工済の画像を表示する
-        cv2.imshow("Tracking", frame)
-        # writer.write(frame)
+        cv2.imshow("Tracking", diff)
+        # writer.write(diff)
         framecount += 1
 
         # キー入力を1ms待って、k が27（ESC）だったらBreakする
         k = cv2.waitKey(1)
         if k == 27 :
             break
+        elif k == ord('s') or framecount is 900:
+            np.save("./npy/tracking_" + filename[8:-4], positions)
+
+        prev_frame = frame
 
     # キャプチャをリリースして、ウィンドウをすべて閉じる
-    writer.release()
     cap.release()
     cv2.destroyAllWindows()
