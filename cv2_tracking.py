@@ -63,6 +63,16 @@ if __name__ == '__main__':
     frames = []
     prev_frame = first_frame
 
+    bboxs = []
+
+    ### video
+    fourcc = cv2.VideoWriter_fourcc(*'DIVX')
+    fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    writer = cv2.VideoWriter('output.mp4', fourcc, fps, (width, height))
+
     while True:
         # VideoCaptureから1フレーム読み込む
         ret, frame = cap.read()
@@ -89,8 +99,12 @@ if __name__ == '__main__':
 
         # frame = np.median(frames, axis=0).astype(np.uint8)
         diff = cv2.subtract(frame, frames[0])*10
-        # diff = cv2.absdiff(frame, prev_frame)*5
+        diff= cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
 
+        bboxs.append(diff[int(bbox[1]):int(bbox[1]+bbox[3]), int(bbox[0]):int(bbox[0]+bbox[2])])
+        # print(diff[int(bbox[1]):int(bbox[1]+bbox[3]), int(bbox[0]):int(bbox[0]+bbox[2])].shape)
+        # diff = cv2.absdiff(frame, prev_frame)*5
+        diff= cv2.cvtColor(diff, cv2.COLOR_GRAY2BGR)
         # diff = cv2.subtract(frame, first_frame)*10
 
         # 検出した場所に四角を書く
@@ -120,10 +134,16 @@ if __name__ == '__main__':
         if k == 27 :
             break
         elif k == ord('s') or framecount is 900:
-            np.save("./npy/tracking_" + filename[8:-4], positions)
+            string_filename = filename[8:-4] + "_" + str(framecount)
+            np.save("./npy/tracking_pos_" + string_filename, positions)
+            np.save("./npy/tracking_bbox_" + string_filename, bboxs)
+            print("saved!")
+
 
         prev_frame = frame
+        writer.write(diff)
 
     # キャプチャをリリースして、ウィンドウをすべて閉じる
+    writer.release()
     cap.release()
     cv2.destroyAllWindows()
