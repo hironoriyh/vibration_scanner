@@ -58,7 +58,7 @@ def lukaskanade(cap):
         old_gray = frame_gray.copy()
         p0 = good_new.reshape(-1,1,2)
 
-def harneback(cap, filename, framecount, color=True):
+def harneback(cap, filename, framecount=0, color=True):
 
     # while True:
     #     ret, frame = cap.read()
@@ -87,7 +87,7 @@ def harneback(cap, filename, framecount, color=True):
     fps = cap.get(cv2.CAP_PROP_FPS)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    writer = cv2.VideoWriter('output.mp4', fourcc, fps, (width, height))
+    writer = cv2.VideoWriter('harnback.mp4', fourcc, fps, (width, height))
 
     while(1):
         ret, frame2 = cap.read()
@@ -115,23 +115,23 @@ def harneback(cap, filename, framecount, color=True):
         if k == 27:
             writer.release()
             break
-        elif k == ord('s') or framecount - init_framecount == 100:
-            npy_filename = "harneback_%s_%i" %(filename, framecount)
-            cv2.imwrite("npy/" + npy_filename + "_org.png", frame2)
-            cv2.imwrite("npy/" + npy_filename + "_hsv.png", rgb)
-            np.save("./npy/" + npy_filename + "_mag", mag_all)
-            np.save("./npy/" + npy_filename + "_ang", ang_all)
-            f = open("./npy/" + npy_filename + ".txt", 'w')
-            text = "bounding box was \n" +  str(bbox)
-            f.write(text)
-            f.close()
-            print("saved!")
-            mag_np = np.array(mag_all)
-            plt.plot(mag_np[:100, 0, :3])
-            plt.ylim(0, 0.5)
-            plt.title(npy_filename + "_mag")
-            plt.show()
-            plt.savefig("./npy/" + npy_filename+"_mag_plot.png")
+        # elif k == ord('s') or framecount - init_framecount == 100:
+        #     npy_filename = "harneback_%s_%i" %(filename, framecount)
+        #     cv2.imwrite("npy/" + npy_filename + "_org.png", frame2)
+        #     cv2.imwrite("npy/" + npy_filename + "_hsv.png", rgb)
+        #     np.save("./npy/" + npy_filename + "_mag", mag_all)
+        #     np.save("./npy/" + npy_filename + "_ang", ang_all)
+        #     f = open("./npy/" + npy_filename + ".txt", 'w')
+        #     text = "bounding box was \n" +  str(bbox)
+        #     f.write(text)
+        #     f.close()
+        #     print("saved!")
+        #     mag_np = np.array(mag_all)
+        #     plt.plot(mag_np[:100, 0, :3])
+        #     plt.ylim(0, 0.5)
+        #     plt.title(npy_filename + "_mag")
+        #     plt.show()
+        #     plt.savefig("./npy/" + npy_filename+"_mag_plot.png")
 
         prvs = next
         framecount +=1
@@ -165,6 +165,14 @@ def diff_frames(cap, filename, framecount=500, spatial_filter=False, init_diff=T
 
     cap.set(cv2.CAP_PROP_POS_FRAMES, framecount)
 
+    ### video
+    fourcc = cv2.VideoWriter_fourcc(*'DIVX')
+    fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    writer = cv2.VideoWriter('diff=frame.mp4', fourcc, fps, (width, height))
+
     while True:
         if(init_diff==0):
             cap.set(cv2.CAP_PROP_POS_FRAMES, framecount)
@@ -180,14 +188,17 @@ def diff_frames(cap, filename, framecount=500, spatial_filter=False, init_diff=T
         # frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
         cv2.putText(frame, "FrameCount : " + str(framecount), (10,60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
         cv2.imshow("Tracking", frame)
+        writer.write(frame)
+
 
         k = cv2.waitKey(30) & 0xff
         if k == 27:
+            writer.release()
             break
 
-        elif(k == ord("s") or framecount == 900):
-            cv2.imwrite("diff_images/subtract_%s_%i.png" %(filename, framecount), frame)
-            print("image saved", "subtract_%s_%i.png" %(filename, framecount))
+        # elif(k == ord("s") or framecount == 900):
+        #     cv2.imwrite("diff_images/subtract_%s_%i.png" %(filename, framecount), frame)
+        #     print("image saved", "subtract_%s_%i.png" %(filename, framecount))
         framecount += 1
 
 def temporalfilter(cap, filename, framecount):
@@ -220,7 +231,7 @@ if __name__ == '__main__':
     parser.add_argument('--file')
     parser.add_argument('--spatial_filter', type=int, default=0)
     parser.add_argument('--init_diff', type=int, default=1)
-    parser.add_argument('--start_framecount', type=int, default=500)
+    parser.add_argument('--start_framecount', type=int, default=0)
     parser.add_argument('--method', type=int, default=0)
     parser.add_argument('--harneback_color', type=int, default=0)
     args = parser.parse_args()
