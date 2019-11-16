@@ -58,7 +58,7 @@ def lukaskanade(cap):
         old_gray = frame_gray.copy()
         p0 = good_new.reshape(-1,1,2)
 
-def harneback(cap, filename, framecount):
+def harneback(cap, filename, framecount, color=True):
 
     # while True:
     #     ret, frame = cap.read()
@@ -81,27 +81,39 @@ def harneback(cap, filename, framecount):
 
     init_framecount = framecount
 
+    ### video
+    fourcc = cv2.VideoWriter_fourcc(*'DIVX')
+    fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    writer = cv2.VideoWriter('output.mp4', fourcc, fps, (width, height))
+
     while(1):
         ret, frame2 = cap.read()
         next = cv2.cvtColor(frame2,cv2.COLOR_BGR2GRAY)
-        flow = cv2.calcOpticalFlowFarneback(prvs,next, None, pyr_scale=0.5, levels=3, winsize=15, iterations=3, poly_n=5, poly_sigma=1.1, flags=0)
-        #flow.shape = 1024,1024, 2
-        # mag, ang = cv2.cartToPolar(flow[...,0], flow[...,1])
-        # mag_all.append(mag[bbox[1]:bbox[1]+bbox[3], bbox[0]:bbox[0]+bbox[2]])
-        # ang_all.append(ang[bbox[1]:bbox[1]+bbox[3], bbox[0]:bbox[0]+bbox[2]])
-        #
-        # hsv[...,0] = ang*180/np.pi/2
-        # # hsv[:,:,0] = ang/2
-        # hsv[...,2] = cv2.normalize(mag,None,0,255,cv2.NORM_MINMAX)
-        # rgb = cv2.cvtColor(hsv,cv2.COLOR_HSV2BGR)
-        rgb = draw_flow(next, flow)
+        flow = cv2.calcOpticalFlowFarneback(prvs,next, None, pyr_scale=0.5, levels=3, winsize=10, iterations=3, poly_n=5, poly_sigma=1.1, flags=0)
+        flow.shape = 1024,1024, 2
+        mag, ang = cv2.cartToPolar(flow[...,0], flow[...,1])
+        mag_all.append(mag[bbox[1]:bbox[1]+bbox[3], bbox[0]:bbox[0]+bbox[2]])
+        ang_all.append(ang[bbox[1]:bbox[1]+bbox[3], bbox[0]:bbox[0]+bbox[2]])
+
+        if(color):
+            hsv[...,0] = ang*180/np.pi/2
+            # hsv[:,:,0] = ang/2
+            hsv[...,2] = cv2.normalize(mag,None,0,255,cv2.NORM_MINMAX)
+            rgb = cv2.cvtColor(hsv,cv2.COLOR_HSV2BGR)
+        else:
+            rgb = draw_flow(next, flow)
 
         cv2.putText(rgb, "FrameCount : " + str(framecount), (10,60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
         # cv2.imshow("harneback", frame)
         cv2.imshow('frame2',rgb)
+        writer.write(rgb)
 
         k = cv2.waitKey(30) & 0xff
         if k == 27:
+            writer.release()
             break
         elif k == ord('s') or framecount - init_framecount == 100:
             npy_filename = "harneback_%s_%i" %(filename, framecount)
@@ -210,6 +222,7 @@ if __name__ == '__main__':
     parser.add_argument('--init_diff', type=int, default=1)
     parser.add_argument('--start_framecount', type=int, default=500)
     parser.add_argument('--method', type=int, default=0)
+    parser.add_argument('--harneback_color', type=int, default=0)
     args = parser.parse_args()
 
     print('sys.argv         : ', args.file)
@@ -225,7 +238,7 @@ if __name__ == '__main__':
     elif args.method == 2:
         lukaskanade(cap)
     elif args.method == 3:
-        harneback(cap, filename, args.start_framecount)
+        harneback(cap, filename, args.start_framecount, args.harneback_color)
 
     cv2.destroyAllWindows()
     cap.release()
